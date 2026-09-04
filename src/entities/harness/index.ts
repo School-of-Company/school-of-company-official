@@ -11,5 +11,6 @@ export {
   isHookItem,
   repoKey,
 } from "./model";
+export { descriptionOf } from "./descriptions";
 export type { CreatePrParams } from "./api";
 export { fetchRepos, fetchCatalog, createPr } from "./api";

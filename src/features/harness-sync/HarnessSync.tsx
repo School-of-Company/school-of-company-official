@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   CATALOG_GROUP_ORDER,
   createPr,
+  descriptionOf,
   fetchCatalog,
   fetchRepos,
   groupOf,
@@ -249,9 +250,9 @@ export default function HarnessSync() {
                               {platformOf(item)}
                             </span>
                           </span>
-                          {item.description && (
+                          {descriptionOf(item) && (
                             <span className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted">
-                              {item.description}
+                              {descriptionOf(item)}
                             </span>
                           )}
                         </span>
