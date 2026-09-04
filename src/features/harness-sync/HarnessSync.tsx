@@ -2,18 +2,23 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
+  BUILT_IN_PRESETS,
   CATALOG_GROUP_ORDER,
   createPr,
+  deleteSavedPreset,
   descriptionOf,
   fetchCatalog,
   fetchRepos,
   groupOf,
   isHookItem,
+  loadSavedPresets,
   platformOf,
   repoKey,
+  saveSavedPreset,
   type CatalogGroup,
   type CatalogItem,
   type RegisteredRepo,
+  type SavedPreset,
 } from "@/entities/harness";
 
 type Status =
@@ -52,6 +57,10 @@ export default function HarnessSync() {
   const [prUrl, setPrUrl] = useState("");
   const [submitError, setSubmitError] = useState("");
 
+  const [savedPresets, setSavedPresets] = useState<SavedPreset[]>([]);
+  const [presetName, setPresetName] = useState("");
+  const [namingPreset, setNamingPreset] = useState(false);
+
   useEffect(() => {
     let cancelled = false;
     Promise.all([fetchRepos(), fetchCatalog()])
@@ -59,6 +68,8 @@ export default function HarnessSync() {
         if (cancelled) return;
         setRepos(loadedRepos);
         setCatalog(loadedCatalog);
+        // localStorage는 서버 렌더 시점에 없으므로, 데이터 로드 후 클라이언트에서만 읽는다.
+        setSavedPresets(loadSavedPresets());
         setStatus({ kind: "ready" });
       })
       .catch((error: unknown) => {
@@ -136,6 +147,40 @@ export default function HarnessSync() {
     });
     setPrUrl("");
     setSubmitError("");
+  }
+
+  /**
+   * 기본 프리셋은 항목 "이름"으로 정의되어 있으므로, 현재 플랫폼 필터가 곧 적용 대상이 된다
+   * (전체면 Claude·Codex 양쪽, 한쪽만 보고 있으면 그 플랫폼만).
+   */
+  function applyBuiltInPreset(itemNames: string[]) {
+    const names = new Set(itemNames);
+    const ids = catalog
+      .filter(
+        (item) =>
+          names.has(item.title) &&
+          (platformFilter === "all" || platformOf(item) === platformFilter),
+      )
+      .map((item) => item.id);
+    setSelectedIds(new Set(ids));
+    setPrUrl("");
+    setSubmitError("");
+  }
+
+  function applySavedPreset(preset: SavedPreset) {
+    // 저장 후 카탈로그에서 사라진 항목은 걸러낸다.
+    const existing = new Set(catalog.map((item) => item.id));
+    setSelectedIds(new Set(preset.itemIds.filter((id) => existing.has(id))));
+    setPrUrl("");
+    setSubmitError("");
+  }
+
+  function saveCurrentSelection() {
+    const name = presetName.trim();
+    if (!name || selectedIds.size === 0) return;
+    setSavedPresets(saveSavedPreset({ name, itemIds: [...selectedIds] }));
+    setPresetName("");
+    setNamingPreset(false);
   }
 
   async function submit() {
@@ -222,6 +267,89 @@ export default function HarnessSync() {
               className={FIELD_CLASS}
             />
           </label>
+        </div>
+      </section>
+
+      {/* 프리셋 — 자주 쓰는 조합. 사용자 프리셋은 이 브라우저에만 저장된다 */}
+      <section className="mt-8 rounded-card border border-border bg-surface p-6 sm:p-8">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-semibold">프리셋</h3>
+            <p className="mt-1 text-sm text-muted">
+              기본 조합을 불러오거나, 지금 선택을 이 브라우저에 저장해 다음에
+              다시 쓸 수 있습니다.
+            </p>
+          </div>
+          {namingPreset ? (
+            <div className="flex items-center gap-2">
+              <input
+                autoFocus
+                value={presetName}
+                onChange={(event) => setPresetName(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") saveCurrentSelection();
+                  if (event.key === "Escape") setNamingPreset(false);
+                }}
+                placeholder="프리셋 이름"
+                className="w-40 rounded-full border border-border bg-bg px-4 py-1.5 text-sm text-fg outline-none focus:border-accent"
+              />
+              <button
+                type="button"
+                onClick={saveCurrentSelection}
+                disabled={!presetName.trim()}
+                className="rounded-full bg-accent px-4 py-1.5 text-xs font-semibold text-white disabled:opacity-40"
+              >
+                저장
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setNamingPreset(true)}
+              disabled={selectedIds.size === 0}
+              className="rounded-full border border-border px-4 py-1.5 text-xs font-semibold text-muted transition-colors hover:border-accent hover:text-fg disabled:opacity-40 disabled:hover:border-border disabled:hover:text-muted"
+            >
+              현재 선택 저장
+            </button>
+          )}
+        </div>
+
+        <div className="mt-5 flex flex-wrap gap-2">
+          {BUILT_IN_PRESETS.map((preset) => (
+            <button
+              key={preset.name}
+              type="button"
+              onClick={() => applyBuiltInPreset(preset.itemNames)}
+              className="rounded-full border border-accent/40 px-4 py-1.5 text-xs font-semibold text-accent-soft transition-colors hover:bg-accent/10"
+            >
+              {preset.name}
+            </button>
+          ))}
+          {savedPresets.map((preset) => (
+            <span
+              key={preset.name}
+              className="flex items-center gap-1 rounded-full border border-border bg-bg pl-4 pr-2 text-xs font-semibold text-fg"
+            >
+              <button
+                type="button"
+                onClick={() => applySavedPreset(preset)}
+                className="py-1.5"
+              >
+                {preset.name}
+                <span className="ml-1.5 font-normal text-muted">
+                  {preset.itemIds.length}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSavedPresets(deleteSavedPreset(preset.name))}
+                aria-label={`${preset.name} 프리셋 삭제`}
+                className="px-1 text-muted transition-colors hover:text-accent"
+              >
+                ×
+              </button>
+            </span>
+          ))}
         </div>
       </section>
 
