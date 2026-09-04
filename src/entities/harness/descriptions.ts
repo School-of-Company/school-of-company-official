@@ -23,6 +23,8 @@ const DESCRIPTIONS: Record<string, string> = {
   test: "무엇을 얼마나 돌릴지 판단해 테스트를 실행하고, 실패는 원인까지 파고들어 설명합니다",
   "write-pr":
     "커밋 내역과 diff를 읽어 PR 제목·본문·라벨을 만들고 그대로 올려줍니다",
+  "nestjs-arch":
+    "NestJS 모듈·DI 구조와 팀 컨벤션을 맞춰줍니다 — 토큰 주입, 환경변수, 검증 파이프, 테스트 스타일 (NestJS 프로젝트)",
 
   // 에이전트 — 필요할 때 따로 실행되는 검사·조사 담당
   "contradiction-finder":
