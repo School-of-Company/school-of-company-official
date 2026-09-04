@@ -1,1 +1,7 @@
-export { BRAND, APPLY_URL, APPLICATION_DEADLINE, PROCESS_STAGE } from "./site";
+export {
+  BRAND,
+  APPLY_URL,
+  APPLICATION_DEADLINE,
+  PROCESS_STAGE,
+  HARNESS_API_URL,
+} from "./site";

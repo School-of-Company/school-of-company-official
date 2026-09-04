@@ -15,3 +15,8 @@ const rawProcessStage = Number(process.env.NEXT_PUBLIC_PROCESS_STAGE ?? 0);
 export const PROCESS_STAGE = Number.isFinite(rawProcessStage)
   ? Math.min(3, Math.max(0, Math.trunc(rawProcessStage)))
   : 0;
+
+// AI 하네스 서버(school-of-company-harness) 주소. /harness 페이지에서만 사용합니다.
+// .env의 NEXT_PUBLIC_HARNESS_API_URL로 관리합니다.
+export const HARNESS_API_URL =
+  process.env.NEXT_PUBLIC_HARNESS_API_URL ?? "http://localhost:3001";
