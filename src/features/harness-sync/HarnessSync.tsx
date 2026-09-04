@@ -24,10 +24,25 @@ type Status =
 const FIELD_CLASS =
   "w-full rounded-xl border border-border bg-bg px-4 py-3 text-sm text-fg outline-none transition-colors focus:border-accent";
 
+// 같은 스킬이 Claude·Codex로 두 번씩 들어오므로, 한쪽만 보도록 걸러낼 수 있게 한다.
+type PlatformFilter = "all" | "Claude" | "Codex";
+
+const PLATFORM_FILTERS: { value: PlatformFilter; label: string }[] = [
+  { value: "all", label: "전체" },
+  { value: "Claude", label: "Claude" },
+  { value: "Codex", label: "Codex" },
+];
+
+const PLATFORM_BADGE_CLASS: Record<string, string> = {
+  Claude: "bg-accent/15 text-accent-soft",
+  Codex: "bg-surface2 text-muted",
+};
+
 export default function HarnessSync() {
   const [status, setStatus] = useState<Status>({ kind: "loading" });
   const [repos, setRepos] = useState<RegisteredRepo[]>([]);
   const [catalog, setCatalog] = useState<CatalogItem[]>([]);
+  const [platformFilter, setPlatformFilter] = useState<PlatformFilter>("all");
 
   const [selectedRepoKey, setSelectedRepoKey] = useState("");
   const [baseBranch, setBaseBranch] = useState("");
@@ -73,11 +88,26 @@ export default function HarnessSync() {
   const grouped = useMemo(() => {
     const map = new Map<CatalogGroup, CatalogItem[]>();
     for (const item of catalog) {
+      if (platformFilter !== "all" && platformOf(item) !== platformFilter) {
+        continue;
+      }
       const group = groupOf(item);
       map.set(group, [...(map.get(group) ?? []), item]);
     }
     return map;
-  }, [catalog]);
+  }, [catalog, platformFilter]);
+
+  // 필터로 가려진 항목도 선택 상태는 유지되므로, 숨은 선택이 몇 개인지 알려줄 수 있게 센다.
+  const hiddenSelectedCount = useMemo(
+    () =>
+      catalog.filter(
+        (item) =>
+          selectedIds.has(item.id) &&
+          platformFilter !== "all" &&
+          platformOf(item) !== platformFilter,
+      ).length,
+    [catalog, selectedIds, platformFilter],
+  );
 
   const hookSelected = useMemo(
     () => catalog.some((item) => selectedIds.has(item.id) && isHookItem(item)),
@@ -195,8 +225,27 @@ export default function HarnessSync() {
         </div>
       </section>
 
+      {/* 플랫폼 필터 — 같은 스킬이 Claude·Codex 두 벌로 들어오므로 한쪽만 골라 볼 수 있게 한다 */}
+      <div className="mt-8 flex items-center gap-2 rounded-full border border-border bg-surface p-1 sm:w-fit">
+        {PLATFORM_FILTERS.map(({ value, label }) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => setPlatformFilter(value)}
+            aria-pressed={platformFilter === value}
+            className={`flex-1 rounded-full px-5 py-2 text-sm font-semibold transition-colors sm:flex-none ${
+              platformFilter === value
+                ? "bg-accent text-white"
+                : "text-muted hover:text-fg"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       {/* 2단계 — 항목 선택 */}
-      <div className="mt-8 space-y-8">
+      <div className="mt-6 space-y-8">
         {CATALOG_GROUP_ORDER.filter((group) => grouped.has(group)).map(
           (group) => {
             const items = grouped.get(group)!;
@@ -246,7 +295,11 @@ export default function HarnessSync() {
                             <span className="truncate text-sm font-semibold text-fg">
                               {item.title}
                             </span>
-                            <span className="shrink-0 rounded-full bg-surface2 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted">
+                            <span
+                              className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
+                                PLATFORM_BADGE_CLASS[platformOf(item)]
+                              }`}
+                            >
                               {platformOf(item)}
                             </span>
                           </span>
@@ -271,6 +324,11 @@ export default function HarnessSync() {
         <div className="min-w-0">
           <p className="text-sm font-semibold text-fg">
             {selectedIds.size}개 선택됨
+            {hiddenSelectedCount > 0 && (
+              <span className="ml-1 font-normal text-muted">
+                (필터에 가려진 {hiddenSelectedCount}개 포함)
+              </span>
+            )}
             {selectedRepo && (
               <span className="ml-2 font-normal text-muted">
                 → {repoKey(selectedRepo)} ({baseBranch})
