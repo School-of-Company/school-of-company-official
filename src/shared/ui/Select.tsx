@@ -149,10 +149,21 @@ export default function Select({
       <AnimatePresence>
         {open && (
           <motion.div
-            initial={{ opacity: 0, y: reduceMotion ? 0 : -6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: reduceMotion ? 0 : -6 }}
-            transition={{ duration: reduceMotion ? 0.1 : 0.18, ease: EASE_POP }}
+            // 위 모서리를 기준으로 펼쳐지게 해서 트리거에서 자라나는 느낌을 준다.
+            // 닫힐 때는 더 짧게 — 사라지는 동작이 길면 조작이 굼뜨게 느껴진다.
+            style={{ transformOrigin: "top" }}
+            initial={{ opacity: 0, y: reduceMotion ? 0 : -4, scaleY: 0.96 }}
+            animate={{ opacity: 1, y: 0, scaleY: 1 }}
+            exit={{
+              opacity: 0,
+              y: reduceMotion ? 0 : -4,
+              scaleY: 0.98,
+              transition: {
+                duration: reduceMotion ? 0.08 : 0.1,
+                ease: "easeIn",
+              },
+            }}
+            transition={{ duration: reduceMotion ? 0.1 : 0.14, ease: EASE_POP }}
             className="absolute inset-x-0 top-[calc(100%+0.5rem)] z-30 overflow-hidden rounded-xl border border-border bg-surface shadow-2xl shadow-black/20"
           >
             {options.length === 0 ? (
