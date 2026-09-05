@@ -1,8 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import { EASE_POP, useReducedMotionSafe } from "@/shared/lib";
 
 export type SelectOption = {
   value: string;
@@ -39,7 +37,6 @@ export default function Select({
   const [highlighted, setHighlighted] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
-  const reduceMotion = useReducedMotionSafe();
 
   const selected = options.find((option) => option.value === value);
 
@@ -146,63 +143,48 @@ export default function Select({
         </svg>
       </button>
 
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            // 위 모서리를 기준으로 펼쳐지게 해서 트리거에서 자라나는 느낌을 준다.
-            // 닫힐 때는 더 짧게 — 사라지는 동작이 길면 조작이 굼뜨게 느껴진다.
-            style={{ transformOrigin: "top" }}
-            initial={{ opacity: 0, y: reduceMotion ? 0 : -4, scaleY: 0.96 }}
-            animate={{ opacity: 1, y: 0, scaleY: 1 }}
-            exit={{
-              opacity: 0,
-              y: reduceMotion ? 0 : -4,
-              scaleY: 0.98,
-              transition: {
-                duration: reduceMotion ? 0.08 : 0.1,
-                ease: "easeIn",
-              },
-            }}
-            transition={{ duration: reduceMotion ? 0.1 : 0.14, ease: EASE_POP }}
-            className="absolute inset-x-0 top-[calc(100%+0.5rem)] z-30 overflow-hidden rounded-xl border border-border bg-surface shadow-2xl shadow-black/20"
-          >
-            {options.length === 0 ? (
-              <p className="px-4 py-3 text-sm text-muted">{emptyMessage}</p>
-            ) : (
-              <ul
-                ref={listRef}
-                role="listbox"
-                aria-activedescendant={`option-${highlighted}`}
-                className="max-h-64 overflow-y-auto py-1"
-              >
-                {options.map((option, index) => {
-                  const isSelected = option.value === value;
-                  return (
-                    <li
-                      key={option.value}
-                      id={`option-${index}`}
-                      role="option"
-                      aria-selected={isSelected}
-                      onPointerEnter={() => setHighlighted(index)}
-                      onClick={() => choose(index)}
-                      className={`flex cursor-pointer items-center justify-between gap-3 px-4 py-2.5 text-sm transition-colors ${
-                        index === highlighted ? "bg-accent/10" : ""
-                      } ${isSelected ? "text-accent-soft" : "text-fg"}`}
-                    >
-                      <span className="truncate">{option.label}</span>
-                      {option.hint && (
-                        <span className="shrink-0 text-xs text-muted">
-                          {option.hint}
-                        </span>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/*
+        열고 닫는 애니메이션을 두지 않는다 — 목록이 바로 뜨고 바로 사라지는 편이
+        조작감이 확실하다. (모션이 있으면 아무리 짧아도 클릭과 결과 사이에 지연이 끼어든다)
+      */}
+      {open && (
+        <div className="absolute inset-x-0 top-[calc(100%+0.5rem)] z-30 overflow-hidden rounded-xl border border-border bg-surface shadow-2xl shadow-black/20">
+          {options.length === 0 ? (
+            <p className="px-4 py-3 text-sm text-muted">{emptyMessage}</p>
+          ) : (
+            <ul
+              ref={listRef}
+              role="listbox"
+              aria-activedescendant={`option-${highlighted}`}
+              className="max-h-64 overflow-y-auto py-1"
+            >
+              {options.map((option, index) => {
+                const isSelected = option.value === value;
+                return (
+                  <li
+                    key={option.value}
+                    id={`option-${index}`}
+                    role="option"
+                    aria-selected={isSelected}
+                    onPointerEnter={() => setHighlighted(index)}
+                    onClick={() => choose(index)}
+                    className={`flex cursor-pointer items-center justify-between gap-3 px-4 py-2.5 text-sm transition-colors ${
+                      index === highlighted ? "bg-accent/10" : ""
+                    } ${isSelected ? "text-accent-soft" : "text-fg"}`}
+                  >
+                    <span className="truncate">{option.label}</span>
+                    {option.hint && (
+                      <span className="shrink-0 text-xs text-muted">
+                        {option.hint}
+                      </span>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      )}
     </div>
   );
 }
