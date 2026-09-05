@@ -154,24 +154,42 @@ export default function HarnessSync() {
    * 기본 프리셋은 항목 "이름"으로 정의되어 있으므로, 현재 플랫폼 필터가 곧 적용 대상이 된다
    * (전체면 Claude·Codex 양쪽, 한쪽만 보고 있으면 그 플랫폼만).
    */
-  function applyBuiltInPreset(itemNames: string[]) {
+  function builtInPresetIds(itemNames: string[]): string[] {
     const names = new Set(itemNames);
-    const ids = catalog
+    return catalog
       .filter(
         (item) =>
           names.has(item.title) &&
           (platformFilter === "all" || platformOf(item) === platformFilter),
       )
       .map((item) => item.id);
-    setSelectedIds(new Set(ids));
-    setPrUrl("");
-    setSubmitError("");
   }
 
-  function applySavedPreset(preset: SavedPreset) {
-    // 저장 후 카탈로그에서 사라진 항목은 걸러낸다.
+  /** 저장 후 카탈로그에서 사라진 항목은 걸러낸다. */
+  function savedPresetIds(preset: SavedPreset): string[] {
     const existing = new Set(catalog.map((item) => item.id));
-    setSelectedIds(new Set(preset.itemIds.filter((id) => existing.has(id))));
+    return preset.itemIds.filter((id) => existing.has(id));
+  }
+
+  /** 프리셋 항목이 이미 전부 선택돼 있으면 "켜진" 상태 — 다시 누르면 빠진다. */
+  function isPresetActive(ids: string[]): boolean {
+    return ids.length > 0 && ids.every((id) => selectedIds.has(id));
+  }
+
+  /**
+   * 프리셋은 선택을 통째로 갈아끼우지 않고 더하고 뺀다. 그래야 프리셋을 여러 개 겹쳐 쓸 수 있고
+   * (공통 최소 + Kotlin 백엔드), 같은 프리셋을 다시 눌러 되돌리는 것도 자연스럽다.
+   */
+  function togglePreset(ids: string[]) {
+    const turningOff = isPresetActive(ids);
+    setSelectedIds((previous) => {
+      const next = new Set(previous);
+      for (const id of ids) {
+        if (turningOff) next.delete(id);
+        else next.add(id);
+      }
+      return next;
+    });
     setPrUrl("");
     setSubmitError("");
   }
@@ -279,8 +297,8 @@ export default function HarnessSync() {
           <div>
             <h3 className="text-lg font-semibold">프리셋</h3>
             <p className="mt-1 text-sm text-muted">
-              기본 조합을 불러오거나, 지금 선택을 이 브라우저에 저장해 다음에
-              다시 쓸 수 있습니다.
+              여러 개를 겹쳐 쓸 수 있고, 다시 누르면 빠집니다. 지금 선택을 이
+              브라우저에 저장해 다음에 다시 쓸 수도 있습니다.
             </p>
           </div>
           {namingPreset ? (
@@ -318,41 +336,69 @@ export default function HarnessSync() {
         </div>
 
         <div className="mt-5 flex flex-wrap gap-2">
-          {BUILT_IN_PRESETS.map((preset) => (
-            <button
-              key={preset.name}
-              type="button"
-              onClick={() => applyBuiltInPreset(preset.itemNames)}
-              className="rounded-full border border-accent/40 px-4 py-1.5 text-xs font-semibold text-accent-soft transition-colors hover:bg-accent/10"
-            >
-              {preset.name}
-            </button>
-          ))}
-          {savedPresets.map((preset) => (
-            <span
-              key={preset.name}
-              className="flex items-center gap-1 rounded-full border border-border bg-bg pl-4 pr-2 text-xs font-semibold text-fg"
-            >
+          {BUILT_IN_PRESETS.map((preset) => {
+            const ids = builtInPresetIds(preset.itemNames);
+            const active = isPresetActive(ids);
+            return (
               <button
+                key={preset.name}
                 type="button"
-                onClick={() => applySavedPreset(preset)}
-                className="py-1.5"
+                onClick={() => togglePreset(ids)}
+                aria-pressed={active}
+                title={active ? "다시 누르면 선택에서 빠집니다" : undefined}
+                className={`rounded-full border px-4 py-1.5 text-xs font-semibold transition-colors ${
+                  active
+                    ? "border-accent bg-accent text-white"
+                    : "border-accent/40 text-accent-soft hover:bg-accent/10"
+                }`}
               >
                 {preset.name}
-                <span className="ml-1.5 font-normal text-muted">
-                  {preset.itemIds.length}
-                </span>
               </button>
-              <button
-                type="button"
-                onClick={() => setSavedPresets(deleteSavedPreset(preset.name))}
-                aria-label={`${preset.name} 프리셋 삭제`}
-                className="px-1 text-muted transition-colors hover:text-accent"
+            );
+          })}
+          {savedPresets.map((preset) => {
+            const ids = savedPresetIds(preset);
+            const active = isPresetActive(ids);
+            return (
+              <span
+                key={preset.name}
+                className={`flex items-center gap-1 rounded-full border pl-4 pr-2 text-xs font-semibold transition-colors ${
+                  active
+                    ? "border-accent bg-accent text-white"
+                    : "border-border bg-bg text-fg"
+                }`}
               >
-                ×
-              </button>
-            </span>
-          ))}
+                <button
+                  type="button"
+                  onClick={() => togglePreset(ids)}
+                  aria-pressed={active}
+                  title={active ? "다시 누르면 선택에서 빠집니다" : undefined}
+                  className="py-1.5"
+                >
+                  {preset.name}
+                  <span
+                    className={`ml-1.5 font-normal ${active ? "text-white/70" : "text-muted"}`}
+                  >
+                    {preset.itemIds.length}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSavedPresets(deleteSavedPreset(preset.name))
+                  }
+                  aria-label={`${preset.name} 프리셋 삭제`}
+                  className={`px-1 transition-colors ${
+                    active
+                      ? "text-white/70 hover:text-white"
+                      : "text-muted hover:text-accent"
+                  }`}
+                >
+                  ×
+                </button>
+              </span>
+            );
+          })}
         </div>
       </section>
 

@@ -5,52 +5,53 @@ const STORAGE_KEY = "harness-presets";
 /** 기본 제공 프리셋. 항목 "이름"으로 정의해 Claude·Codex 어느 쪽에도 적용할 수 있게 한다. */
 export type BuiltInPreset = { name: string; itemNames: string[] };
 
-const COMMON = [
-  "git-commit",
-  "write-pr",
-  "resolve-reviews",
-  "planning",
-  "systematic-debugging",
-  "security-checklist",
-  "secret-guard",
-  "command-guard",
-];
-
+/**
+ * 프리셋끼리는 **항목이 겹치지 않게** 구성한다.
+ *
+ * 프리셋은 누를 때마다 켜지고 꺼지는 토글인데, A가 B의 항목을 품고 있으면 A를 끌 때 B의 항목까지
+ * 빠져서 B까지 꺼진 것처럼 보인다. 그래서 공통 항목은 "공통"에만 두고, 스택별 프리셋에는
+ * 그 스택에서만 쓰는 것만 남겼다. 대신 조합해서 쓴다 — 예: 공통 + TypeScript + Next.js.
+ */
 export const BUILT_IN_PRESETS: BuiltInPreset[] = [
   {
-    name: "공통 최소",
-    itemNames: COMMON,
-  },
-  {
-    name: "Kotlin·Spring 백엔드",
+    name: "공통",
     itemNames: [
-      ...COMMON,
-      "api-design",
+      "git-commit",
+      "write-pr",
+      "resolve-reviews",
+      "planning",
+      "systematic-debugging",
+      "security-checklist",
       "docker",
       "test",
-      "kotlin-convention-validator",
-      "kotlin-test-fixer",
       "contradiction-finder",
       "doc-polisher",
+      "secret-guard",
+      "command-guard",
+    ],
+  },
+  {
+    name: "+ Kotlin·Spring",
+    itemNames: [
+      "api-design",
+      "kotlin-convention-validator",
+      "kotlin-test-fixer",
       "ktlint",
       "gradle-test",
       "spotless",
     ],
   },
   {
-    name: "Next.js 프론트엔드",
-    itemNames: [
-      ...COMMON,
-      "docker",
-      "test",
-      "frontend-convention-validator",
-      "contradiction-finder",
-      "doc-polisher",
-      "eslint",
-      "prettier",
-      "ts-check",
-      "jest",
-    ],
+    name: "+ TypeScript",
+    itemNames: ["eslint", "prettier", "ts-check", "jest"],
+  },
+  {
+    name: "+ Next.js",
+    itemNames: ["frontend-convention-validator"],
+  },
+  {
+    name: "+ NestJS",
+    itemNames: ["nestjs-arch"],
   },
 ];
 
