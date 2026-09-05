@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Select } from "@/shared/ui";
 import {
   BUILT_IN_PRESETS,
   CATALOG_GROUP_ORDER,
@@ -238,23 +239,25 @@ export default function HarnessSync() {
         </p>
 
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
-          <label className="block">
-            <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.15em] text-accent-soft">
+          <div>
+            <span
+              id="repo-select-label"
+              className="mb-2 block text-xs font-semibold uppercase tracking-[0.15em] text-accent-soft"
+            >
               레포
             </span>
-            <select
+            <Select
               value={selectedRepoKey}
-              onChange={(event) => selectRepo(event.target.value)}
-              className={FIELD_CLASS}
-            >
-              <option value="">레포를 선택하세요</option>
-              {repos.map((repo) => (
-                <option key={repoKey(repo)} value={repoKey(repo)}>
-                  {repoKey(repo)}
-                </option>
-              ))}
-            </select>
-          </label>
+              onChange={selectRepo}
+              placeholder="레포를 선택하세요"
+              emptyMessage="GitHub App이 설치된 레포가 없습니다"
+              options={repos.map((repo) => ({
+                value: repoKey(repo),
+                label: repoKey(repo),
+                hint: repo.defaultBranch,
+              }))}
+            />
+          </div>
 
           <label className="block">
             <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.15em] text-accent-soft">
