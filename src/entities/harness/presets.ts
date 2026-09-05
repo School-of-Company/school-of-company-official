@@ -31,15 +31,22 @@ export const BUILT_IN_PRESETS: BuiltInPreset[] = [
     ],
   },
   {
-    name: "+ Kotlin·Spring",
+    // Java·Kotlin이 함께 쓰는 Spring/Gradle 공통 항목. 언어별 프리셋과 겹치지 않게 여기로 뺐다.
+    name: "+ Spring",
+    itemNames: ["api-design", "gradle-test", "spotless"],
+  },
+  {
+    name: "+ Kotlin",
     itemNames: [
-      "api-design",
+      "kotlin-spring-arch",
       "kotlin-convention-validator",
       "kotlin-test-fixer",
       "ktlint",
-      "gradle-test",
-      "spotless",
     ],
+  },
+  {
+    name: "+ Java",
+    itemNames: ["java-spring-arch"],
   },
   {
     name: "+ TypeScript",

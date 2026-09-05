@@ -339,17 +339,29 @@ export default function HarnessSync() {
           {BUILT_IN_PRESETS.map((preset) => {
             const ids = builtInPresetIds(preset.itemNames);
             const active = isPresetActive(ids);
+            // 카탈로그에 해당 항목이 하나도 없으면(이름 변경·삭제, 플랫폼 필터로 전부 제외 등)
+            // 눌러도 더하고 뺄 게 없다. 멀쩡한 버튼처럼 보이면 "안 눌린다"로 오해하므로 비활성 처리.
+            const unavailable = ids.length === 0;
             return (
               <button
                 key={preset.name}
                 type="button"
                 onClick={() => togglePreset(ids)}
                 aria-pressed={active}
-                title={active ? "다시 누르면 선택에서 빠집니다" : undefined}
+                disabled={unavailable}
+                title={
+                  unavailable
+                    ? "이 프리셋의 항목이 현재 카탈로그에 없습니다"
+                    : active
+                      ? "다시 누르면 선택에서 빠집니다"
+                      : undefined
+                }
                 className={`rounded-full border px-4 py-1.5 text-xs font-semibold transition-colors ${
-                  active
-                    ? "border-accent bg-accent text-white"
-                    : "border-accent/40 text-accent-soft hover:bg-accent/10"
+                  unavailable
+                    ? "cursor-not-allowed border-border text-muted opacity-50"
+                    : active
+                      ? "border-accent bg-accent text-white"
+                      : "border-accent/40 text-accent-soft hover:bg-accent/10"
                 }`}
               >
                 {preset.name}
@@ -372,14 +384,21 @@ export default function HarnessSync() {
                   type="button"
                   onClick={() => togglePreset(ids)}
                   aria-pressed={active}
-                  title={active ? "다시 누르면 선택에서 빠집니다" : undefined}
-                  className="py-1.5"
+                  disabled={ids.length === 0}
+                  title={
+                    ids.length === 0
+                      ? "저장할 때의 항목이 카탈로그에 남아있지 않습니다"
+                      : active
+                        ? "다시 누르면 선택에서 빠집니다"
+                        : undefined
+                  }
+                  className={`py-1.5 ${ids.length === 0 ? "cursor-not-allowed opacity-50" : ""}`}
                 >
                   {preset.name}
                   <span
                     className={`ml-1.5 font-normal ${active ? "text-white/70" : "text-muted"}`}
                   >
-                    {preset.itemIds.length}
+                    {ids.length}
                   </span>
                 </button>
                 <button

@@ -25,6 +25,10 @@ const DESCRIPTIONS: Record<string, string> = {
     "커밋 내역과 diff를 읽어 PR 제목·본문·라벨을 만들고 그대로 올려줍니다",
   "nestjs-arch":
     "NestJS 모듈·DI 구조와 팀 컨벤션을 맞춰줍니다 — 토큰 주입, 환경변수, 검증 파이프, 테스트 스타일 (NestJS 프로젝트)",
+  "kotlin-spring-arch":
+    "Controller·Service·Repository 역할 분리와 트랜잭션 전략, N+1 방지, DTO 변환 규칙 (Kotlin·Spring 프로젝트)",
+  "java-spring-arch":
+    "Controller·Service·Repository 역할 분리와 트랜잭션 전략, N+1 방지, DTO 변환 규칙 (Java·Spring 프로젝트)",
 
   // 에이전트 — 필요할 때 따로 실행되는 검사·조사 담당
   "contradiction-finder":
