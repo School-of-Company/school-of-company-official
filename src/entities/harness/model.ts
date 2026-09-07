@@ -52,3 +52,22 @@ export function isHookItem(item: CatalogItem): boolean {
 export function repoKey(repo: RegisteredRepo): string {
   return `${repo.owner}/${repo.repo}`;
 }
+
+/**
+ * 레포를 소유자(조직 또는 개인 계정)별로 묶어 개수와 함께 돌려준다.
+ *
+ * 등록 절차가 따로 없어서 GitHub App이 설치된 레포가 전부 한 목록으로 들어오는데, 소유자가
+ * 늘어나면 섞인 목록에서 원하는 레포를 찾기 어려워진다. 레포가 많은 소유자를 앞에 두고(주로
+ * 쓰는 조직이 먼저 오도록), 같은 개수면 이름순으로 고정해 목록 순서가 매번 흔들리지 않게 한다.
+ */
+export function ownersOf(
+  repos: RegisteredRepo[],
+): { owner: string; count: number }[] {
+  const counts = new Map<string, number>();
+  for (const repo of repos) {
+    counts.set(repo.owner, (counts.get(repo.owner) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .map(([owner, count]) => ({ owner, count }))
+    .sort((a, b) => b.count - a.count || a.owner.localeCompare(b.owner));
+}

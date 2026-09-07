@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Select } from "@/shared/ui";
 import {
   BUILT_IN_PRESETS,
   CATALOG_GROUP_ORDER,
@@ -21,6 +20,7 @@ import {
   type RegisteredRepo,
   type SavedPreset,
 } from "@/entities/harness";
+import RepoPicker from "./RepoPicker";
 
 type Status =
   | { kind: "loading" }
@@ -253,7 +253,8 @@ export default function HarnessSync() {
       <section className="rounded-card border border-border bg-surface p-6 sm:p-8">
         <h3 className="text-lg font-semibold">배포 대상</h3>
         <p className="mt-1 text-sm text-muted">
-          GitHub App이 설치된 레포만 목록에 표시됩니다.
+          GitHub App이 설치된 레포만 목록에 표시됩니다. 레포는 소유자별로 나뉘어
+          있습니다.
         </p>
 
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
@@ -264,16 +265,10 @@ export default function HarnessSync() {
             >
               레포
             </span>
-            <Select
+            <RepoPicker
+              repos={repos}
               value={selectedRepoKey}
               onChange={selectRepo}
-              placeholder="레포를 선택하세요"
-              emptyMessage="GitHub App이 설치된 레포가 없습니다"
-              options={repos.map((repo) => ({
-                value: repoKey(repo),
-                label: repoKey(repo),
-                hint: repo.defaultBranch,
-              }))}
             />
           </div>
 

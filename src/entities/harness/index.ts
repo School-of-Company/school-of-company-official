@@ -10,6 +10,7 @@ export {
   platformOf,
   isHookItem,
   repoKey,
+  ownersOf,
 } from "./model";
 export { descriptionOf } from "./descriptions";
 export type { BuiltInPreset, SavedPreset } from "./presets";
