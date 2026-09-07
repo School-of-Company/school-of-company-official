@@ -32,10 +32,12 @@ const SECURITY_HEADERS = [
   },
 ];
 
-// 하네스 API의 실제 주소. 환경변수로 빼지 않고 그냥 박아둔다 — 하네스는 사내에서만 쓰는
-// 도구여서 환경별로 갈릴 일이 없고, 서버가 아직 외부에 노출되지 않아 개발자 머신의 SSH
-// 터널(로컬 3001)로만 닿는다. 주소가 바뀌면 이 줄만 고치면 된다.
-const HARNESS_API_ORIGIN = "http://localhost:3001";
+// 하네스 API의 실제 주소. 브라우저에 노출되지 않는 서버 전용 값이라 NEXT_PUBLIC_ 접두사가 없다.
+// 로컬에서는 `.env.local`에, 배포 환경에서는 Vercel 환경변수에 넣는다
+// (예: 로컬 SSH 터널이면 http://localhost:3001).
+//
+// rewrites()는 서버가 뜰 때 한 번만 평가되므로, Vercel에서 값을 바꾸면 재배포해야 반영된다.
+const HARNESS_API_ORIGIN = process.env.HARNESS_API_ORIGIN;
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -49,7 +51,12 @@ const nextConfig = {
   // 하네스 서버(다른 포트/도메인)를 직접 호출하면 차단된다. 프록시를 두면 브라우저는 자기
   // 오리진만 부르고 실제 호출은 Next 서버가 대신하므로, CSP를 느슨하게 풀지 않아도 되고
   // CORS·혼합 콘텐츠 문제도 함께 사라진다.
+  //
+  // 값이 없으면 프록시를 아예 등록하지 않는다. 잘못된 목적지를 넣어두면 사이트 전체가 이상하게
+  // 동작하는 반면, 등록하지 않으면 하네스 페이지만 "서버에 연결할 수 없다"고 뜨고 나머지
+  // 페이지는 멀쩡하다. 하네스는 사내 도구라 이 저장소를 받는 모두가 값을 갖고 있을 필요도 없다.
   async rewrites() {
+    if (!HARNESS_API_ORIGIN) return [];
     return [
       {
         source: "/api/harness/:path*",
