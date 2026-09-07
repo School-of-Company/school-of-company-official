@@ -32,9 +32,10 @@ const SECURITY_HEADERS = [
   },
 ];
 
-// 하네스 API의 실제 주소. 브라우저에 노출되지 않는 서버 전용 값이라 NEXT_PUBLIC_ 접두사가 없다.
-const HARNESS_API_ORIGIN =
-  process.env.HARNESS_API_ORIGIN ?? "http://localhost:3001";
+// 하네스 API의 실제 주소. 환경변수로 빼지 않고 그냥 박아둔다 — 하네스는 사내에서만 쓰는
+// 도구여서 환경별로 갈릴 일이 없고, 서버가 아직 외부에 노출되지 않아 개발자 머신의 SSH
+// 터널(로컬 3001)로만 닿는다. 주소가 바뀌면 이 줄만 고치면 된다.
+const HARNESS_API_ORIGIN = "http://localhost:3001";
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
