@@ -15,3 +15,10 @@ const rawProcessStage = Number(process.env.NEXT_PUBLIC_PROCESS_STAGE ?? 0);
 export const PROCESS_STAGE = Number.isFinite(rawProcessStage)
   ? Math.min(3, Math.max(0, Math.trunc(rawProcessStage)))
   : 0;
+
+// AI 하네스 API 호출 경로. /harness 페이지에서만 사용합니다.
+//
+// 하네스 서버를 직접 가리키지 않고 같은 오리진 경로를 씁니다 — CSP의 `connect-src 'self'`가
+// 다른 오리진 호출을 막기 때문입니다. 실제 서버 주소는 next.config.mjs의 rewrite에
+// 그대로 적혀 있습니다.
+export const HARNESS_API_URL = "/api/harness";

@@ -14,6 +14,7 @@ const HOME_PATH = "/";
 const NAV_ITEMS = [
   { path: "/", label: "소개" },
   { path: "/recruit", label: "모집 안내" },
+  { path: "/harness", label: "하네스" },
 ];
 
 const MotionLink = motion.create(Link);
