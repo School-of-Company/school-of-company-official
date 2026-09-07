@@ -37,7 +37,11 @@ const SECURITY_HEADERS = [
 // (예: 로컬 SSH 터널이면 http://localhost:3001).
 //
 // rewrites()는 서버가 뜰 때 한 번만 평가되므로, Vercel에서 값을 바꾸면 재배포해야 반영된다.
-const HARNESS_API_ORIGIN = process.env.HARNESS_API_ORIGIN;
+//
+// 끝의 `/`는 떼어낸다. 아래에서 `${origin}/:path*`로 이어 붙이기 때문에, 값이
+// `https://example.com/`처럼 들어오면 목적지가 `//repos`가 되어 서버가 404를 준다.
+// 사람이 주소창에서 복사해 넣는 값이라 끝 슬래시는 흔하다 — 설정하는 쪽을 탓하지 말고 여기서 받아준다.
+const HARNESS_API_ORIGIN = process.env.HARNESS_API_ORIGIN?.replace(/\/+$/, "");
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
