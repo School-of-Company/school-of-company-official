@@ -1,12 +1,29 @@
 import { HARNESS_API_URL } from "@/shared/config";
 import type { CatalogItem, RegisteredRepo } from "./model";
 
+// 하네스 서버가 응답 없이 멈추면 로딩 스피너가 무한히 도는 것처럼 보인다.
+// 일정 시간이 지나면 요청을 끊고 명확한 에러로 바꿔, 사용자가 재시도할지 판단할 수 있게 한다.
+const TIMEOUT_MS = 15_000;
+
 async function get<T>(path: string): Promise<T> {
-  const response = await fetch(`${HARNESS_API_URL}${path}`);
-  if (!response.ok) {
-    throw new Error(`${path} 요청 실패 (${response.status})`);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  try {
+    const response = await fetch(`${HARNESS_API_URL}${path}`, {
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      throw new Error(`${path} 요청 실패 (${response.status})`);
+    }
+    return (await response.json()) as T;
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new Error(`${path} 요청이 시간 초과되었습니다`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
   }
-  return response.json() as Promise<T>;
 }
 
 export function fetchRepos(): Promise<RegisteredRepo[]> {
