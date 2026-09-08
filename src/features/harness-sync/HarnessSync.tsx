@@ -22,7 +22,13 @@ import {
 } from "@/entities/harness";
 import RepoPicker from "./RepoPicker";
 
-type Status =
+/**
+ * 레포 목록(`/repos`)과 카탈로그(`/catalog`)는 하네스 서버에서 응답 속도가 크게 다르다
+ * (레포 목록은 GitHub 설치 정보를 조회하느라 수 초가 걸릴 수 있고, 카탈로그는 즉시 온다).
+ * 두 요청을 하나로 묶어 기다리면 화면 전체가 가장 느린 쪽에 발목 잡히므로, 상태를 따로 둬서
+ * 카탈로그가 오는 즉시 항목 선택 화면을 보여주고 레포 목록은 그 옆에서 따로 채워지게 한다.
+ */
+type ResourceStatus =
   | { kind: "loading" }
   | { kind: "ready" }
   | { kind: "error"; message: string };
@@ -45,7 +51,12 @@ const PLATFORM_BADGE_CLASS: Record<string, string> = {
 };
 
 export default function HarnessSync() {
-  const [status, setStatus] = useState<Status>({ kind: "loading" });
+  const [reposStatus, setReposStatus] = useState<ResourceStatus>({
+    kind: "loading",
+  });
+  const [catalogStatus, setCatalogStatus] = useState<ResourceStatus>({
+    kind: "loading",
+  });
   const [repos, setRepos] = useState<RegisteredRepo[]>([]);
   const [catalog, setCatalog] = useState<CatalogItem[]>([]);
   const [platformFilter, setPlatformFilter] = useState<PlatformFilter>("all");
@@ -62,31 +73,56 @@ export default function HarnessSync() {
   const [presetName, setPresetName] = useState("");
   const [namingPreset, setNamingPreset] = useState(false);
 
+  const [reposRetryCount, setReposRetryCount] = useState(0);
+  const [catalogRetryCount, setCatalogRetryCount] = useState(0);
+
   useEffect(() => {
     let cancelled = false;
-    Promise.all([fetchRepos(), fetchCatalog()])
-      .then(([loadedRepos, loadedCatalog]) => {
+    fetchRepos()
+      .then((loaded) => {
         if (cancelled) return;
-        setRepos(loadedRepos);
-        setCatalog(loadedCatalog);
-        // localStorage는 서버 렌더 시점에 없으므로, 데이터 로드 후 클라이언트에서만 읽는다.
-        setSavedPresets(loadSavedPresets());
-        setStatus({ kind: "ready" });
+        setRepos(loaded);
+        setReposStatus({ kind: "ready" });
       })
       .catch((error: unknown) => {
         if (cancelled) return;
-        setStatus({
+        setReposStatus({
           kind: "error",
           message:
             error instanceof Error
               ? error.message
-              : "하네스 서버에 연결할 수 없습니다",
+              : "레포 목록을 불러오지 못했습니다",
         });
       });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [reposRetryCount]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchCatalog()
+      .then((loaded) => {
+        if (cancelled) return;
+        setCatalog(loaded);
+        // localStorage는 서버 렌더 시점에 없으므로, 데이터 로드 후 클라이언트에서만 읽는다.
+        setSavedPresets(loadSavedPresets());
+        setCatalogStatus({ kind: "ready" });
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        setCatalogStatus({
+          kind: "error",
+          message:
+            error instanceof Error
+              ? error.message
+              : "카탈로그를 불러오지 못했습니다",
+        });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [catalogRetryCount]);
 
   const selectedRepo = repos.find((repo) => repoKey(repo) === selectedRepoKey);
 
@@ -225,21 +261,30 @@ export default function HarnessSync() {
     }
   }
 
-  if (status.kind === "loading") {
-    return (
-      <p className="rounded-card border border-border bg-surface p-8 text-sm text-muted">
-        카탈로그를 불러오는 중입니다…
-      </p>
-    );
+  // 카탈로그가 화면의 본문(항목 선택)이라 이 상태만으로 전체 페이지를 가른다. 레포 목록은
+  // 응답이 훨씬 느릴 수 있어(수 초) 따로 기다리지 않고, 아래 "배포 대상" 칸 안에서 자기
+  // 상태를 보여준다 — 카탈로그만 왔으면 항목을 미리 훑어보고 고를 수 있다.
+  if (catalogStatus.kind === "loading") {
+    return <CatalogSkeleton />;
   }
 
-  if (status.kind === "error") {
+  if (catalogStatus.kind === "error") {
     return (
       <div className="rounded-card border border-accent/30 bg-surface p-8">
         <p className="text-sm font-semibold text-fg">
           하네스 서버에 연결하지 못했습니다
         </p>
-        <p className="mt-2 text-sm text-muted">{status.message}</p>
+        <p className="mt-2 text-sm text-muted">{catalogStatus.message}</p>
+        <button
+          type="button"
+          onClick={() => {
+            setCatalogStatus({ kind: "loading" });
+            setCatalogRetryCount((count) => count + 1);
+          }}
+          className="mt-4 rounded-full border border-accent/40 px-4 py-1.5 text-xs font-semibold text-accent-soft transition-colors hover:bg-accent/10"
+        >
+          다시 시도
+        </button>
       </div>
     );
   }
@@ -265,11 +310,34 @@ export default function HarnessSync() {
             >
               레포
             </span>
-            <RepoPicker
-              repos={repos}
-              value={selectedRepoKey}
-              onChange={selectRepo}
-            />
+            {reposStatus.kind === "loading" && (
+              <div
+                aria-hidden
+                className="h-[46px] w-full animate-pulse rounded-xl border border-border bg-surface2"
+              />
+            )}
+            {reposStatus.kind === "error" && (
+              <div className="flex items-center justify-between gap-3 rounded-xl border border-accent/30 bg-bg px-4 py-3 text-sm">
+                <span className="text-muted">레포 목록을 불러오지 못했습니다</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReposStatus({ kind: "loading" });
+                    setReposRetryCount((count) => count + 1);
+                  }}
+                  className="shrink-0 text-xs font-semibold text-accent-soft underline"
+                >
+                  다시 시도
+                </button>
+              </div>
+            )}
+            {reposStatus.kind === "ready" && (
+              <RepoPicker
+                repos={repos}
+                value={selectedRepoKey}
+                onChange={selectRepo}
+              />
+            )}
           </div>
 
           <label className="block">
@@ -556,6 +624,34 @@ export default function HarnessSync() {
         >
           {submitting ? "생성 중…" : "PR 생성"}
         </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * 실제 레이아웃(카드 그리드)의 윤곽을 미리 보여준다. 문구 한 줄보다 "곧 이 모양이 채워진다"는
+ * 기대를 주고, 로딩이 끝났을 때 레이아웃이 갑자기 뒤바뀌는 느낌(레이아웃 시프트)도 줄어든다.
+ */
+function CatalogSkeleton() {
+  return (
+    <div aria-hidden className="animate-pulse pb-28">
+      <section className="rounded-card border border-border bg-surface p-6 sm:p-8">
+        <div className="h-5 w-28 rounded bg-surface2" />
+        <div className="mt-3 h-4 w-3/4 rounded bg-surface2" />
+        <div className="mt-6 grid gap-4 sm:grid-cols-2">
+          <div className="h-[46px] rounded-xl bg-surface2" />
+          <div className="h-[46px] rounded-xl bg-surface2" />
+        </div>
+      </section>
+
+      <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {Array.from({ length: 6 }, (_, index) => (
+          <div
+            key={index}
+            className="h-20 rounded-card border border-border bg-surface"
+          />
+        ))}
       </div>
     </div>
   );
