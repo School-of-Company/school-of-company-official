@@ -8,6 +8,7 @@ import {
   deleteSavedPreset,
   descriptionOf,
   fetchCatalog,
+  fetchRecommendation,
   fetchRepos,
   groupOf,
   isHookItem,
@@ -17,6 +18,7 @@ import {
   saveSavedPreset,
   type CatalogGroup,
   type CatalogItem,
+  type Recommendation,
   type RegisteredRepo,
   type SavedPreset,
 } from "@/entities/harness";
@@ -60,6 +62,12 @@ export default function HarnessSync() {
   const [repos, setRepos] = useState<RegisteredRepo[]>([]);
   const [catalog, setCatalog] = useState<CatalogItem[]>([]);
   const [platformFilter, setPlatformFilter] = useState<PlatformFilter>("all");
+
+  // 추천은 레포를 고른 뒤에 따로 불러온다 (레포의 빌드 파일·의존성을 읽어야 해서 느리다).
+  const [recommendation, setRecommendation] = useState<Recommendation | null>(
+    null,
+  );
+  const [recommendationLoading, setRecommendationLoading] = useState(false);
 
   const [selectedRepoKey, setSelectedRepoKey] = useState("");
   const [baseBranch, setBaseBranch] = useState("");
@@ -127,10 +135,74 @@ export default function HarnessSync() {
   const selectedRepo = repos.find((repo) => repoKey(repo) === selectedRepoKey);
 
   // 레포를 고르면 그 레포의 기본 브랜치를 base 브랜치 기본값으로 함께 채웁니다(이후 수정 가능).
+  /**
+   * 레포를 고르면 기본 브랜치를 채우고, 그 레포에 맞는 항목을 서버에 물어본다.
+   *
+   * 추천 결과가 오면 해당 항목을 **자동으로 체크**한다 — 62개를 매번 손으로 고르는 게 이 화면의
+   * 가장 큰 수고였다. 자동 선택 이후의 체크 변경은 그대로 유지되고, 「추천대로 선택」 버튼으로
+   * 언제든 다시 맞출 수 있다.
+   *
+   * 추천이 실패하면 아무것도 막지 않는다. 그냥 수동 선택 화면이 된다.
+   */
   function selectRepo(key: string) {
     setSelectedRepoKey(key);
     const repo = repos.find((candidate) => repoKey(candidate) === key);
     setBaseBranch(repo?.defaultBranch ?? "");
+    setPrUrl("");
+    setSubmitError("");
+    setRecommendation(null);
+
+    if (!repo) return;
+
+    setRecommendationLoading(true);
+    fetchRecommendation(repo.owner, repo.repo, repo.installationId)
+      .then((result) => {
+        setRecommendation(result);
+        setSelectedIds(
+          new Set(
+            result.items
+              .filter((entry) => entry.verdict === "recommended")
+              .map((entry) => entry.id),
+          ),
+        );
+      })
+      .catch(() => {
+        // 추천은 보조 기능이라 실패를 화면에 띄우지 않는다 — 수동 선택은 그대로 가능하다.
+        setRecommendation(null);
+      })
+      .finally(() => setRecommendationLoading(false));
+  }
+
+  /** 항목 id → 추천 판정. 카드에 경고를 붙이는 데 쓴다. */
+  const verdictById = useMemo(() => {
+    const map = new Map<string, { verdict: string; reason: string }>();
+    for (const entry of recommendation?.items ?? []) {
+      map.set(entry.id, { verdict: entry.verdict, reason: entry.reason });
+    }
+    return map;
+  }, [recommendation]);
+
+  const recommendedIds = useMemo(
+    () =>
+      (recommendation?.items ?? [])
+        .filter((entry) => entry.verdict === "recommended")
+        .map((entry) => entry.id),
+    [recommendation],
+  );
+
+  /** 해당 없는데도 체크된 항목 — 막지는 않지만 액션 바에서 알려준다. */
+  const notApplicableSelected = useMemo(
+    () =>
+      [...selectedIds].filter(
+        (id) => verdictById.get(id)?.verdict === "not-applicable",
+      ).length,
+    [selectedIds, verdictById],
+  );
+
+  function applyRecommendation() {
+    setSelectedIds(new Set(recommendedIds));
+    setPrUrl("");
+    setSubmitError("");
   }
 
   const grouped = useMemo(() => {
@@ -352,6 +424,74 @@ export default function HarnessSync() {
             />
           </label>
         </div>
+
+        {/*
+          레포를 고르면 서버가 그 레포의 빌드 파일·의존성을 읽어 무엇이 맞는지 알려준다.
+          여기 보이는 건 판단 근거와 결과이고, 선택을 강제하지는 않는다.
+        */}
+        {recommendationLoading && (
+          <p className="mt-5 text-sm text-muted">
+            이 레포에 맞는 항목을 확인하는 중입니다…
+          </p>
+        )}
+
+        {recommendation && !recommendationLoading && (
+          <div className="mt-5 rounded-card border border-border bg-bg p-4 sm:p-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-fg">
+                  이 레포에서 감지한 환경
+                </p>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {[...recommendation.stacks, ...recommendation.tools].map(
+                    (name) => (
+                      <span
+                        key={name}
+                        className="rounded-full bg-surface2 px-2.5 py-1 text-xs font-semibold text-fg"
+                      >
+                        {name}
+                      </span>
+                    ),
+                  )}
+                  {recommendation.stacks.length === 0 &&
+                    recommendation.tools.length === 0 && (
+                      <span className="text-xs text-muted">
+                        판단할 만한 단서를 찾지 못했습니다 — 직접 골라주세요
+                      </span>
+                    )}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={applyRecommendation}
+                disabled={recommendedIds.length === 0}
+                className="shrink-0 rounded-full border border-accent/40 px-4 py-1.5 text-xs font-semibold text-accent-soft transition-colors hover:bg-accent/10 disabled:opacity-40"
+              >
+                추천대로 선택 ({recommendedIds.length})
+              </button>
+            </div>
+
+            {recommendation.evidence.length > 0 && (
+              <details className="mt-3 text-xs text-muted">
+                <summary className="cursor-pointer font-semibold text-accent-soft">
+                  판단 근거 {recommendation.evidence.length}개
+                </summary>
+                <ul className="mt-2 space-y-1">
+                  {recommendation.evidence.map((line) => (
+                    <li key={line} className="truncate">
+                      {line}
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
+
+            <p className="mt-3 text-xs text-muted">
+              추천은 참고용입니다. 해당 없다고 표시된 항목도 그대로 선택해 보낼 수
+              있습니다.
+            </p>
+          </div>
+        )}
       </section>
 
       {/* 프리셋 — 자주 쓰는 조합. 사용자 프리셋은 이 브라우저에만 저장된다 */}
@@ -534,13 +674,21 @@ export default function HarnessSync() {
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {items.map((item) => {
                     const checked = selectedIds.has(item.id);
+                    const judgement = verdictById.get(item.id);
+                    // 해당 없음은 흐리게 보여주되 선택은 막지 않는다. 체크하면 경고를 더 분명히 띄운다.
+                    const notApplicable = judgement?.verdict === "not-applicable";
                     return (
                       <label
                         key={item.id}
+                        title={judgement?.reason}
                         className={`group flex h-full cursor-pointer gap-3 rounded-card border p-4 transition-colors ${
                           checked
-                            ? "border-accent bg-accent/5"
-                            : "border-border bg-surface hover:border-accent/40"
+                            ? notApplicable
+                              ? "border-amber-500/50 bg-amber-500/5"
+                              : "border-accent bg-accent/5"
+                            : notApplicable
+                              ? "border-border/60 bg-surface opacity-60 hover:opacity-100"
+                              : "border-border bg-surface hover:border-accent/40"
                         }`}
                       >
                         <input
@@ -567,6 +715,12 @@ export default function HarnessSync() {
                               {descriptionOf(item)}
                             </span>
                           )}
+                          {notApplicable && (
+                            <span className="mt-1.5 flex items-start gap-1 text-[11px] leading-relaxed text-amber-500">
+                              <span aria-hidden>⚠</span>
+                              <span className="min-w-0">{judgement?.reason}</span>
+                            </span>
+                          )}
                         </span>
                       </label>
                     );
@@ -583,6 +737,11 @@ export default function HarnessSync() {
         <div className="min-w-0">
           <p className="text-sm font-semibold text-fg">
             {selectedIds.size}개 선택됨
+            {notApplicableSelected > 0 && (
+              <span className="ml-1 font-normal text-amber-500">
+                (이 레포에 해당 없는 {notApplicableSelected}개 포함)
+              </span>
+            )}
             {hiddenSelectedCount > 0 && (
               <span className="ml-1 font-normal text-muted">
                 (필터에 가려진 {hiddenSelectedCount}개 포함)

@@ -16,6 +16,28 @@ export type CatalogItem = {
   path: string;
 };
 
+/** `GET /repos/:owner/:repo/recommendation` 응답. 서버의 판단과 근거를 그대로 받습니다. */
+export type ItemVerdict = "recommended" | "not-applicable";
+
+export type ItemRecommendation = {
+  id: string;
+  title: string;
+  category: CatalogCategory;
+  verdict: ItemVerdict;
+  /** 왜 추천했는지 / 왜 해당 없는지 — 화면에 그대로 보여줍니다. */
+  reason: string;
+};
+
+export type Recommendation = {
+  /** 감지된 언어·프레임워크 (kotlin, typescript, nestjs …) */
+  stacks: string[];
+  /** 감지된 빌드·린트·테스트 도구 (gradle, ktlint, oxlint …) */
+  tools: string[];
+  /** 어떤 파일·의존성을 보고 그렇게 판단했는지 */
+  evidence: string[];
+  items: ItemRecommendation[];
+};
+
 export type RegisteredRepo = {
   owner: string;
   repo: string;

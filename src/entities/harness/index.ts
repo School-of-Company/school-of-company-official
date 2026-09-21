@@ -3,6 +3,9 @@ export type {
   CatalogItem,
   RegisteredRepo,
   CatalogGroup,
+  Recommendation,
+  ItemRecommendation,
+  ItemVerdict,
 } from "./model";
 export {
   CATALOG_GROUP_ORDER,
@@ -21,4 +24,9 @@ export {
   deleteSavedPreset,
 } from "./presets";
 export type { CreatePrParams } from "./api";
-export { fetchRepos, fetchCatalog, createPr } from "./api";
+export {
+  fetchRepos,
+  fetchCatalog,
+  fetchRecommendation,
+  createPr,
+} from "./api";

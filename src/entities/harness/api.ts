@@ -1,5 +1,5 @@
 import { HARNESS_API_URL } from "@/shared/config";
-import type { CatalogItem, RegisteredRepo } from "./model";
+import type { CatalogItem, Recommendation, RegisteredRepo } from "./model";
 
 // 하네스 서버가 응답 없이 멈추면 로딩 스피너가 무한히 도는 것처럼 보인다.
 // 일정 시간이 지나면 요청을 끊고 명확한 에러로 바꿔, 사용자가 재시도할지 판단할 수 있게 한다.
@@ -32,6 +32,23 @@ export function fetchRepos(): Promise<RegisteredRepo[]> {
 
 export function fetchCatalog(): Promise<CatalogItem[]> {
   return get<CatalogItem[]>("/catalog");
+}
+
+/**
+ * 대상 레포에 맞는 항목을 서버에 물어봅니다.
+ *
+ * 서버가 레포의 빌드 파일·의존성을 읽어 판단하므로 카탈로그·레포 목록보다 느립니다. 그래서 레포를
+ * 고른 뒤에 따로 부르고, 실패해도 화면 전체를 막지 않습니다 — 추천은 어디까지나 보조이고,
+ * 없어도 직접 골라서 PR을 만들 수 있어야 합니다.
+ */
+export function fetchRecommendation(
+  owner: string,
+  repo: string,
+  installationId: number,
+): Promise<Recommendation> {
+  return get<Recommendation>(
+    `/repos/${owner}/${repo}/recommendation?installationId=${installationId}`,
+  );
 }
 
 export type CreatePrParams = {
