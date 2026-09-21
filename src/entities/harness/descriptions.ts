@@ -55,6 +55,8 @@ const DESCRIPTIONS: Record<string, string> = {
     "API 키나 토큰이 코드에 박히려는 순간 저장을 막습니다 (.env 파일은 검사 제외)",
   eslint:
     "저장할 때마다 린트 오류를 자동으로 고쳐줍니다 (ESLint 설정이 있는 JS·TS 프로젝트)",
+  oxlint:
+    "저장할 때마다 oxlint로 린트 오류를 고쳐줍니다 — ESLint 대신 oxlint를 쓰는 프로젝트용",
   prettier:
     "저장할 때마다 포맷을 맞춰, 포맷 변경이 PR diff에 섞이지 않게 합니다",
   "ts-check":
