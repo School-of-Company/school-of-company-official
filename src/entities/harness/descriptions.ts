@@ -58,9 +58,9 @@ const DESCRIPTIONS: Record<string, string> = {
 
   // 훅 — 도구 호출 시점에 자동으로 끼어드는 안전장치·자동화
   "command-guard":
-    "rm -rf / 같은 파괴적인 명령이 실행되기 전에 차단해 사고를 원천 방지합니다",
+    "되돌릴 수 없는 명령을 실행 직전에 막습니다 — force push, reset --hard, 원격 삭제 등 (rm -rf dist 같은 정상 작업은 통과)",
   "secret-guard":
-    "API 키나 토큰이 코드에 박히려는 순간 저장을 막습니다 (.env 파일은 검사 제외)",
+    "API 키·토큰이 코드에 박히는 것도, .env·키 파일을 읽어 화면에 꺼내는 것도 막습니다",
   eslint:
     "저장할 때마다 린트 오류를 자동으로 고쳐줍니다 (ESLint 설정이 있는 JS·TS 프로젝트)",
   oxlint:
